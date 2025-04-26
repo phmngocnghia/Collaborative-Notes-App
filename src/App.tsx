@@ -143,11 +143,10 @@ const App = () => {
       <div className="p-4 border-b">
         <Button onClick={createNote}>Create New Note</Button>
       </div>
-      <div className="flex flex-1">
+      <div className="flex flex-1 overflow-auto">
         {/* Notes List */}
         <div className="w-1/4 border-r p-4 overflow-y-auto">
-          <h3 className="text-lg font-bold mb-1">Notes List:</h3>
-          <List>
+          <ul>
             {Object.keys(notes).map((noteId) => {
               const note = notes[noteId];
               let displayTitle = note.title || "Untitled";
@@ -168,7 +167,7 @@ const App = () => {
               }).format(note.timestamp);
 
               return (
-                <ListItem key={noteId} className="mb-4">
+                <li key={noteId} className="mb-4">
                   <span
                     onClick={() => selectNote(noteId)}
                     className="block w-full text-left p-2 bg-gray-100 rounded hover:bg-gray-200"
@@ -186,14 +185,14 @@ const App = () => {
                     </div>
                     <small>{formattedTimestamp}</small>
                   </span>
-                </ListItem>
+                </li>
               );
             })}
-          </List>
+          </ul>
         </div>
 
         {/* Editor */}
-        <div className="flex-1 p-4">
+        <div className="flex-1 px-4 py-7 h-full flex flex-col flex-wrap">
           {currentNoteId ? (
             <>
               <div className="mb-4">
@@ -210,7 +209,7 @@ const App = () => {
                 theme="snow"
                 value={noteContent}
                 onChange={onChangeContent}
-                className="h-[calc(100%-50px)]"
+                className="flex flex-col flex-1"
               />
             </>
           ) : (
