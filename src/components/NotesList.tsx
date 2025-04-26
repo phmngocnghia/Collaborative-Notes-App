@@ -3,6 +3,7 @@ import { Button } from "@mui/material";
 import { FixedSizeList as List } from "react-window";
 import { Notes } from "../types";
 import useBreakpoint from "use-breakpoint";
+import throttle from "lodash.throttle";
 
 interface NotesListProps {
   notes: Notes;
@@ -39,12 +40,12 @@ const NotesList: React.FC<NotesListProps> = ({
   );
 
   useEffect(() => {
-    // Update the height of the container dynamically
-    const updateHeight = () => {
+    // Throttle the height update function
+    const updateHeight = throttle(() => {
       if (containerRef.current) {
         setContainerHeight(containerRef.current.offsetHeight);
       }
-    };
+    }, 100);
 
     // Set initial height
     updateHeight();
@@ -53,6 +54,7 @@ const NotesList: React.FC<NotesListProps> = ({
 
     return () => {
       window.removeEventListener("resize", updateHeight);
+      updateHeight.cancel(); // Cancel any pending throttled calls
     };
   }, []);
 
@@ -105,7 +107,7 @@ const NotesList: React.FC<NotesListProps> = ({
 
   return (
     <div
-      className="md:w-1/4 h-[300px] md:h-full  border-r p-4  pb-8"
+      className="md:w-1/4 h-[300px] md:h-full border-r p-4 pb-8"
       ref={containerRef}
     >
       <List
