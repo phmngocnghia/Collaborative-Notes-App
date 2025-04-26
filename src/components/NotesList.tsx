@@ -1,13 +1,27 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useMemo } from "react";
 import { Button } from "@mui/material";
 import { FixedSizeList as List } from "react-window";
 import { Notes } from "../types";
+import useBreakpoint from "use-breakpoint";
 
 interface NotesListProps {
   notes: Notes;
   selectNote: (noteId: string) => void;
   deleteNote: (noteId: string) => void;
 }
+
+const BREAKPOINTS = { mobile: 0, tablet: 768, desktop: 1280 };
+const getRowWithByBreakPoint = (
+  breakpoint: keyof typeof BREAKPOINTS | null
+) => {
+  switch (breakpoint) {
+    case "mobile":
+    case "tablet":
+      return 110;
+    default: // desktop
+      return 90;
+  }
+};
 
 const NotesList: React.FC<NotesListProps> = ({
   notes,
@@ -17,6 +31,12 @@ const NotesList: React.FC<NotesListProps> = ({
   const noteIds = Object.keys(notes);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [containerHeight, setContainerHeight] = useState(500);
+  const { breakpoint } = useBreakpoint(BREAKPOINTS);
+
+  const rowHeight = useMemo(
+    () => getRowWithByBreakPoint(breakpoint),
+    [breakpoint]
+  );
 
   useEffect(() => {
     // Update the height of the container dynamically
@@ -45,12 +65,7 @@ const NotesList: React.FC<NotesListProps> = ({
   }) => {
     const noteId = noteIds[index];
     const note = notes[noteId];
-    let displayTitle = note.title || "Untitled";
-
-    // Truncate the title to a maximum of 10 characters
-    if (displayTitle.length > 10) {
-      displayTitle = displayTitle.slice(0, 10) + "...";
-    }
+    const displayTitle = note.title || "Untitled";
 
     const formattedTimestamp = new Intl.DateTimeFormat("en-GB", {
       weekday: "long",
@@ -62,13 +77,17 @@ const NotesList: React.FC<NotesListProps> = ({
     }).format(note.timestamp);
 
     return (
-      <div style={style} key={noteId} className="mb-4">
-        <span
-          onClick={() => selectNote(noteId)}
-          className="block w-full text-left p-2 bg-gray-100 rounded hover:bg-gray-200"
-        >
-          <div className="flex">
-            <div className="mr-auto">{displayTitle}</div>
+      <div
+        onClick={() => selectNote(noteId)}
+        style={style}
+        key={noteId}
+        className="block w-full"
+      >
+        <div className="p-2 bg-gray-100 rounded hover:bg-gray-200">
+          <div className="flex flex-nowrap">
+            <div className="mr-auto w-full lg:w-auto truncate">
+              {displayTitle}
+            </div>
             <Button
               onClick={(e) => {
                 e.stopPropagation();
@@ -79,18 +98,21 @@ const NotesList: React.FC<NotesListProps> = ({
             </Button>
           </div>
           <small>{formattedTimestamp}</small>
-        </span>
+        </div>
       </div>
     );
   };
 
   return (
-    <div className="w-1/4 border-r p-4  pb-8" ref={containerRef}>
+    <div
+      className="md:w-1/4 h-[300px] md:h-full  border-r p-4  pb-8"
+      ref={containerRef}
+    >
       <List
         // 32 is padding of container
         height={containerHeight - 32}
         itemCount={noteIds.length}
-        itemSize={80}
+        itemSize={rowHeight}
         width="100%"
       >
         {Row}

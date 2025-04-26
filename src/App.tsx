@@ -185,7 +185,7 @@ const App = () => {
       <div className="p-4 border-b">
         <Button onClick={createNote}>Create New Note</Button>
       </div>
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
         <NotesList
           notes={notes}
           selectNote={selectNote}
