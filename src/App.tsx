@@ -137,14 +137,24 @@ const App = () => {
     const handleStorageEvent = (e: StorageEvent) => {
       if (e.key === "notes" && e.newValue) {
         const updatedNotes = JSON.parse(e.newValue);
-        setNotes(updatedNotes);
-        if (currentNoteId && updatedNotes[currentNoteId]) {
-          const { title, content, timestamp } = updatedNotes[currentNoteId];
-          if (timestamp > Date.now() - 1000) {
-            setNoteTitle(title);
-            setNoteContent(content);
+
+        const isCurrentNoteBeingUpdated =
+          currentNoteId && updatedNotes[currentNoteId];
+        if (isCurrentNoteBeingUpdated) {
+          const incomingNote = updatedNotes[currentNoteId];
+          const currentNote = notes[currentNoteId];
+
+          // First write wins: Ignore the update if the incoming note is older
+          if (incomingNote.timestamp < currentNote.timestamp) {
+            return;
           }
+
+          // Update the current note if the incoming note is newer or equal
+          setNoteTitle(incomingNote.title);
+          setNoteContent(incomingNote.content);
         }
+
+        setNotes(updatedNotes);
       }
     };
 
@@ -153,7 +163,7 @@ const App = () => {
     return () => {
       window.removeEventListener("storage", handleStorageEvent);
     };
-  }, [currentNoteId]);
+  }, [currentNoteId, notes]);
 
   useEffect(() => {
     if (currentNoteId) {
@@ -175,7 +185,7 @@ const App = () => {
       <div className="p-4 border-b">
         <Button onClick={createNote}>Create New Note</Button>
       </div>
-      <div className="flex flex-1 overflow-auto">
+      <div className="flex flex-1 overflow-hidden">
         <NotesList
           notes={notes}
           selectNote={selectNote}

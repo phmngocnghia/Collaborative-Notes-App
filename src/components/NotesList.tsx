@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { Button } from "@mui/material";
 import { FixedSizeList as List } from "react-window";
 import { Notes } from "../types";
@@ -15,6 +15,26 @@ const NotesList: React.FC<NotesListProps> = ({
   deleteNote,
 }) => {
   const noteIds = Object.keys(notes);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [containerHeight, setContainerHeight] = useState(500);
+
+  useEffect(() => {
+    // Update the height of the container dynamically
+    const updateHeight = () => {
+      if (containerRef.current) {
+        setContainerHeight(containerRef.current.offsetHeight);
+      }
+    };
+
+    // Set initial height
+    updateHeight();
+
+    window.addEventListener("resize", updateHeight);
+
+    return () => {
+      window.removeEventListener("resize", updateHeight);
+    };
+  }, []);
 
   const Row = ({
     index,
@@ -63,9 +83,16 @@ const NotesList: React.FC<NotesListProps> = ({
       </div>
     );
   };
+
   return (
-    <div className="w-1/4 border-r p-4 overflow-y-auto">
-      <List height={500} itemCount={noteIds.length} itemSize={80} width="100%">
+    <div className="w-1/4 border-r p-4  pb-8" ref={containerRef}>
+      <List
+        // 32 is padding of container
+        height={containerHeight - 32}
+        itemCount={noteIds.length}
+        itemSize={80}
+        width="100%"
+      >
         {Row}
       </List>
     </div>
