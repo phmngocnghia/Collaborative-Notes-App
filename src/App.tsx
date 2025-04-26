@@ -1,21 +1,24 @@
-import { useEffect, useState } from "react";
-import ReactQuill from "react-quill-new";
+import { useEffect, useState, useCallback } from "react";
+import debounce from "lodash.debounce";
 import "react-quill-new/dist/quill.snow.css";
 import "quill/dist/quill.snow.css";
-import { TextField, Button, List, ListItem } from "@mui/material";
+import { Button } from "@mui/material";
 import { Notes } from "./types";
+import NotesList from "./components/NotesList";
+import Editor from "./components/Editor";
 
-// Helper function to store and get notes from localStorage
 const saveNotesToLocalStorage = (notes: Notes) => {
   localStorage.setItem("notes", JSON.stringify(notes));
 };
 
-const getNotesFromLocalStorage = () => {
-  return JSON.parse(localStorage.getItem("notes") || "") || {};
+const debouncedSaveNotesToLocalStorage = debounce(saveNotesToLocalStorage, 500);
+
+const getNotesFromLocalStorage = (): Notes => {
+  return JSON.parse(localStorage.getItem("notes") || "{}") || {};
 };
 
 const generateRandomId = () => {
-  return Math.random().toString(36).substring(2, 10); // Generate a random string
+  return Math.random().toString(36).substring(2, 10);
 };
 
 const App = () => {
@@ -24,41 +27,110 @@ const App = () => {
   const [noteContent, setNoteContent] = useState("");
   const [noteTitle, setNoteTitle] = useState("");
 
-  const onChangeContent = (updatedContent: string) => {
-    setNoteContent(updatedContent);
+  const onChangeContent = useCallback(
+    (updatedContent: string) => {
+      setNoteContent(updatedContent);
 
-    if (currentNoteId) {
-      const timestamp = Date.now();
-      const updatedNotes = {
-        ...notes,
-        [currentNoteId]: {
-          title: noteTitle,
-          content: updatedContent,
-          timestamp,
-        },
-      };
-      setNotes(updatedNotes);
-      saveNotesToLocalStorage(updatedNotes);
-    }
-  };
+      // shouldn't happen, just guard. currentNoteId = null, quill editor is hidden
+      if (currentNoteId) {
+        const timestamp = Date.now();
+        const updatedNotes = {
+          ...notes,
+          [currentNoteId]: {
+            title: noteTitle,
+            content: updatedContent,
+            timestamp,
+          },
+        };
+        setNotes(updatedNotes);
+        debouncedSaveNotesToLocalStorage(updatedNotes); // Use debounced function
+      }
+    },
+    [currentNoteId, noteTitle, notes]
+  );
 
-  const onChangeTitle = (updatedTitle: string) => {
-    setNoteTitle(updatedTitle);
+  const onChangeTitle = useCallback(
+    (updatedTitle: string) => {
+      setNoteTitle(updatedTitle);
 
-    if (currentNoteId) {
-      const timestamp = Date.now();
-      const updatedNotes = {
-        ...notes,
-        [currentNoteId]: {
-          title: updatedTitle,
-          content: noteContent,
-          timestamp,
-        },
-      };
-      setNotes(updatedNotes);
-      saveNotesToLocalStorage(updatedNotes);
-    }
-  };
+      if (currentNoteId) {
+        const timestamp = Date.now();
+        const updatedNotes = {
+          ...notes,
+          [currentNoteId]: {
+            title: updatedTitle,
+            content: noteContent,
+            timestamp,
+          },
+        };
+        setNotes(updatedNotes);
+        debouncedSaveNotesToLocalStorage(updatedNotes); // Use debounced function
+      }
+    },
+    [currentNoteId, noteContent, notes]
+  );
+
+  const createNote = useCallback(() => {
+    const newNoteId = generateRandomId();
+
+    const newNotes = {
+      ...notes,
+      [newNoteId]: {
+        title: "Untitled",
+        content: "",
+        timestamp: Date.now(),
+      },
+    };
+
+    setNotes(newNotes);
+    setCurrentNoteId(newNoteId);
+    setNoteTitle("Untitled");
+    setNoteContent("");
+    debouncedSaveNotesToLocalStorage(newNotes); // Use debounced function
+  }, [notes]);
+
+  const deleteNote = useCallback(
+    (noteId: string) => {
+      if (window.confirm("Are you sure you want to delete this note?")) {
+        const newNotes = { ...notes };
+        delete newNotes[noteId];
+        setNotes(newNotes);
+        debouncedSaveNotesToLocalStorage(newNotes); // Use debounced function
+
+        // If the deleted note is the current note, clear the editor
+        if (currentNoteId === noteId) {
+          const remainingNoteIds = Object.keys(newNotes);
+
+          if (remainingNoteIds.length > 0) {
+            // Focus on the first remaining note
+            const firstNoteId = remainingNoteIds[0];
+            setCurrentNoteId(firstNoteId);
+            const firstNote = newNotes[firstNoteId];
+            setNoteTitle(firstNote.title);
+            setNoteContent(firstNote.content);
+          } else {
+            // No notes left, clear the editor
+            setCurrentNoteId(null);
+            setNoteTitle("");
+            setNoteContent("");
+          }
+        }
+      }
+    },
+    [currentNoteId, notes]
+  );
+
+  const selectNote = useCallback(
+    (noteId: string) => {
+      setCurrentNoteId(noteId);
+      const selectedNote = notes[noteId];
+      if (selectedNote) {
+        setNoteTitle(selectedNote.title);
+        setNoteContent(selectedNote.content);
+      }
+    },
+    [notes]
+  );
 
   useEffect(() => {
     // Sync data across tabs using localStorage
@@ -81,62 +153,22 @@ const App = () => {
     return () => {
       window.removeEventListener("storage", handleStorageEvent);
     };
-  }, [currentNoteId, notes]);
+  }, [currentNoteId]);
 
   useEffect(() => {
-    // Select the first note by default or create a new note if none exist
+    if (currentNoteId) {
+      return;
+    }
+
+    // select note 0 by default
     if (Object.keys(notes).length > 0) {
       const firstNoteId = Object.keys(notes)[0];
       setCurrentNoteId(firstNoteId);
       const firstNote = notes[firstNoteId];
       setNoteTitle(firstNote.title);
       setNoteContent(firstNote.content);
-    } else {
-      createNote(); // Create a new note if no notes exist
     }
-  }, []); // Run only once on component mount
-
-  const createNote = () => {
-    const newNoteId = generateRandomId();
-
-    const newNotes = {
-      ...notes,
-      [newNoteId]: {
-        title: "Untitled",
-        content: "",
-        timestamp: Date.now(),
-      },
-    };
-
-    setNotes(newNotes);
-    setCurrentNoteId(newNoteId);
-    setNoteTitle("Untitled");
-    setNoteContent("");
-    saveNotesToLocalStorage(newNotes);
-  };
-
-  const deleteNote = (noteId: string) => {
-    if (window.confirm("Are you sure you want to delete this note?")) {
-      const newNotes = { ...notes };
-      delete newNotes[noteId];
-      setNotes(newNotes);
-      saveNotesToLocalStorage(newNotes);
-      if (currentNoteId === noteId) {
-        setCurrentNoteId(null);
-        setNoteTitle("");
-        setNoteContent("");
-      }
-    }
-  };
-
-  const selectNote = (noteId: string) => {
-    setCurrentNoteId(noteId);
-    const selectedNote = notes[noteId];
-    if (selectedNote) {
-      setNoteTitle(selectedNote.title);
-      setNoteContent(selectedNote.content);
-    }
-  };
+  }, []);
 
   return (
     <div className="flex flex-col h-screen">
@@ -144,80 +176,18 @@ const App = () => {
         <Button onClick={createNote}>Create New Note</Button>
       </div>
       <div className="flex flex-1 overflow-auto">
-        {/* Notes List */}
-        <div className="w-1/4 border-r p-4 overflow-y-auto">
-          <ul>
-            {Object.keys(notes).map((noteId) => {
-              const note = notes[noteId];
-              let displayTitle = note.title || "Untitled";
+        <NotesList
+          notes={notes}
+          selectNote={selectNote}
+          deleteNote={deleteNote}
+        />
 
-              // Truncate the title to a maximum of 10 characters
-              if (displayTitle.length > 10) {
-                displayTitle = displayTitle.slice(0, 20) + "...";
-              }
-
-              // Format the timestamp for display
-              const formattedTimestamp = new Intl.DateTimeFormat("en-GB", {
-                weekday: "long",
-                day: "2-digit",
-                month: "long",
-                year: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-              }).format(note.timestamp);
-
-              return (
-                <li key={noteId} className="mb-4">
-                  <span
-                    onClick={() => selectNote(noteId)}
-                    className="block w-full text-left p-2 bg-gray-100 rounded hover:bg-gray-200"
-                  >
-                    <div className="flex">
-                      <div className="mr-auto"> {displayTitle} </div>
-                      <Button
-                        onClick={(e) => {
-                          e.stopPropagation(); // Prevent the click event from bubbling up to the ListItem
-                          deleteNote(noteId);
-                        }}
-                      >
-                        Delete
-                      </Button>
-                    </div>
-                    <small>{formattedTimestamp}</small>
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-
-        {/* Editor */}
-        <div className="flex-1 px-4 py-7 h-full flex flex-col flex-wrap">
-          {currentNoteId ? (
-            <>
-              <div className="mb-4">
-                <TextField
-                  label="Note Title"
-                  type="text"
-                  value={noteTitle}
-                  onChange={(e) => onChangeTitle(e.target.value)}
-                  placeholder="Note Title"
-                  className="w-full"
-                />
-              </div>
-              <ReactQuill
-                theme="snow"
-                value={noteContent}
-                onChange={onChangeContent}
-                className="flex flex-col flex-1"
-              />
-            </>
-          ) : (
-            <p className="text-gray-500">
-              Select or create a note to start editing.
-            </p>
-          )}
-        </div>
+        <Editor
+          noteTitle={noteTitle}
+          noteContent={noteContent}
+          onChangeContent={onChangeContent}
+          onChangeTitle={onChangeTitle}
+        />
       </div>
     </div>
   );
