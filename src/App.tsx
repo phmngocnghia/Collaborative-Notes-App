@@ -86,7 +86,7 @@ const App = () => {
     setCurrentNoteId(newNoteId);
     setNoteTitle("Untitled");
     setNoteContent("");
-    debouncedSaveNotesToLocalStorage(newNotes); // Use debounced function
+    debouncedSaveNotesToLocalStorage(newNotes);
   }, [notes]);
 
   const deleteNote = useCallback(
@@ -95,12 +95,13 @@ const App = () => {
         const newNotes = { ...notes };
         delete newNotes[noteId];
         setNotes(newNotes);
-        debouncedSaveNotesToLocalStorage(newNotes); // Use debounced function
+        debouncedSaveNotesToLocalStorage(newNotes);
 
-        // If the deleted note is the current note, clear the editor
+        // handle delete current opened note
         if (currentNoteId === noteId) {
           const remainingNoteIds = Object.keys(newNotes);
 
+          // focus on the first remaining note
           if (remainingNoteIds.length > 0) {
             // Focus on the first remaining note
             const firstNoteId = remainingNoteIds[0];
@@ -109,7 +110,7 @@ const App = () => {
             setNoteTitle(firstNote.title);
             setNoteContent(firstNote.content);
           } else {
-            // No notes left, clear the editor
+            // clear editor
             setCurrentNoteId(null);
             setNoteTitle("");
             setNoteContent("");
